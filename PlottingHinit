@@ -1,0 +1,18 @@
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(20,10))
+plt.axis([0, 10000, -100, 100])
+plt.ion()
+plt.show()
+fig = plt.gcf()
+fig.canvas.manager.window.raise_()
+plt.plot(x,H[12,:] - Hinit,'b')
+plt.plot(x,H[14,:] - Hinit,'g')
+plt.plot(x,H[16,:] - Hinit,'r')
+plt.plot(x,H[18,:] - Hinit,'c')
+plt.plot(x,H[20,:] - Hinit,'k')
+plt.grid(True)
+plt.title('Deviation from Hinit')
+plt.draw()
+
+
