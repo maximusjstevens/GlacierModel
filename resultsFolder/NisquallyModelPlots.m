@@ -22,6 +22,7 @@ datadir_low='/Users/maxstev/Documents/Grad_School/Nisqually/Nisqually/model/resu
 datadir_high='/Users/maxstev/Documents/Grad_School/Nisqually/Nisqually/model/resultsFolder/elahigher';
 datadir_saw='/Users/maxstev/Documents/Grad_School/Nisqually/Nisqually/model/resultsFolder/elasaw';
 datadir_noise='/Users/maxstev/Documents/Grad_School/Nisqually/Nisqually/model/resultsFolder/elarandom';
+datadir_PLU='/Users/maxstev/Documents/Grad_School/Nisqually/Nisqually/model/resultsFolder/PLU';
 
 if exist('npy','var')==0
     files = dir( fullfile(datadir,'*.csv') );   %# list all *.xyz files

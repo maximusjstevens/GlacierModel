@@ -25,8 +25,8 @@ def glacier(D,b_in,delx,nxs,x,zb,bedprof,nyrs,spin,Hinit=None):
     rho=917.0              # density of ice in kg/m^3
     g=9.8                  # gravity in m/s^2
     n=3.0                    # glen's flow law constant
-    mu = 0.7;      # melt rate in m /yr /degC
-    gam = 5.0e-3;     # atmospheric lapse rate in degC/m
+    mu = 0.6;      # melt rate in m /yr /degC
+    gam = 6.0e-3;     # atmospheric lapse rate in degC/m
 
     s_per_year = 365.25*24*3600        # number of seconds in a year (s yr^-1)
     A_T = 6.8e-24*s_per_year       # softness parameter for -5 degree ice (yr^-1 Pa^-3). Units given in Oerlemans are per second, so need sPerYear conversion
@@ -36,7 +36,7 @@ def glacier(D,b_in,delx,nxs,x,zb,bedprof,nyrs,spin,Hinit=None):
     #delt = 0.0004 # time step in yrs. Stable size is ~delx^2 / R, where R is ~3-10e5. Seems like the smaller delx is, the smaller R must be.
     dfa=10.e5 
     delt = delx**2/dfa #time step in years, varies based on grid size
-    print delt
+    # print delt
     ts = 0             # starting time in yrs
     if spin:
         tf = 100      # final time in yrs
@@ -82,9 +82,9 @@ def glacier(D,b_in,delx,nxs,x,zb,bedprof,nyrs,spin,Hinit=None):
     #    b_hold=np.zeros_like(H_hold) 
         
     if not spin:
-        t_hold=np.zeros((nyrs))
+        t_hold=np.zeros((int(nyrs)))
         L_hold=np.zeros_like(t_hold)
-        H_hold=np.zeros((nyrs,nxs))
+        H_hold=np.zeros((int(nyrs),int(nxs)))
         Qp_hold=np.zeros_like(H_hold)
         Qp_slide_hold=np.zeros_like(H_hold)
         Qp_def_hold=np.zeros_like(H_hold)
@@ -227,7 +227,7 @@ def glacier(D,b_in,delx,nxs,x,zb,bedprof,nyrs,spin,Hinit=None):
                      
         # change in height within glacier for this timestep
         dHdt[within] = b[within] - (Qp[within] - Qm[within])/delx       # based on accumulation in/melt out and flux in/out 
-        dHdt[nxs-1] = 0 # enforce no change at edge of domain
+        dHdt[int(nxs-1)] = 0 # enforce no change at edge of domain
 
         ### done with space
         
@@ -323,13 +323,12 @@ def filesaver(D,savedir):
 if __name__ == "__main__":
     tic=time.time()
     spot = os.path.dirname(sys.argv[0])
-    savedir=os.path.join(spot,'resultsFolder')
+    savedir=os.path.join(spot,'resultsFolder/PLU')
     if not os.path.exists(savedir):
         os.makedirs(savedir)
     plt.close("all")
     
     bedtype = 'nisq' #choose 'nisq','lin', or 'poly'
-    ######## Bed options: choose which one you like by commenting/uncommenting ######
     
     if bedtype == 'nisq':
         ##### nisqually bed, from kate allstadt's digitization of Kennard (1984?) bed from monopulse radar. Probably very wrong, but good for qualitative studies I reckon.
@@ -348,26 +347,30 @@ if __name__ == "__main__":
         yy=3.26188711e-05*xx**2 + -6.48240291e-01*xx +  4.33066591e+03
         zz=np.vstack((xx,yy))
         bedprof=zz.T
+
+    mbr=np.genfromtxt('Nisq_MB_1917_2015.csv',delimiter=',') #mass balance record from Al
     #####
     
-    nyrs=50. #number of years to run simulation for. Explicit time stepping, so it takes a while if you want high-resolution space (e.g. 2 minutes for 25m grid spacing and 50-year model run on my macbook)
+    mbr_years=mbr[0,:]
+    nyrs=mbr_years[-1]-mbr_years[0] #number of years to run simulation for. Explicit time stepping, so it takes a while if you want high-resolution space (e.g. 2 minutes for 25m grid spacing and 50-year model run on my macbook)
 
     ## ------------------------------------
     #define grid spacing and time
     ## ------------------------------------
     xmx = 10000.          # max of the domain size in m
-    delx = 25.              # grid spacing in m
+    delx = 20.              # grid spacing in m
     nxs = np.round(xmx/delx) + 1  # number of grid points
     x = np.arange(0,xmx+delx,delx)                   # x array (each point)
     
     #delt = 0.0004 # time step in yrs. Stable size is ~delx^2 / R, where R is ~3-10e5. Seems like the smaller delx is, the smaller R must be.
     dfa=10.e5 
     delt = delx**2/dfa #time step in years, varies based on grid size
-    ts = 0             # starting time in yrs
-    tf=nyrs #number of years of model run
+    # ts = 0             # starting time in yrs
+    ts = mbr_years[0]
+    tf=ts+nyrs #number of years of model run
     ntsm=np.floor((tf-ts)/delt) + 1 # number of time steps ('round' used because need nts as integer)
-    nyrs = tf-ts       # just final time - start time
-
+    # nyrs = tf-ts       # just final time - start time
+    tt = np.arange(ts,tf)
     
     ## ------------------------------------
     # glacier bed geometries
@@ -378,20 +381,30 @@ if __name__ == "__main__":
     
     ## ------------------------------------
     # mass balance input
-    ## ------------------------------------    
-    elam=2800.0 #mean ELA
+    ## ------------------------------------ 
+    ba=mbr[3,:]
+    # ba_n=(ba-np.mean(ba))/(np.std(ba))   
+    elam=2500.0 #mean ELA
     slp=116. #slope of mass balance as function of position. ~110 - 120, e.g. b=(icsu-ela)/116. 
     b_mean=(zb-elam)/slp #mean specific mass balance profile
-    sigELA=100.
-    ELAnoise=sigELA*np.random.randn(nyrs+1);
-    ela_var=elam+ELAnoise #variable annual ELA
+    # sigELA=100.
+    # ELAnoise=sigELA*np.random.randn(nyrs+1);
+    # ELAnoise=ba*elam/10
+    ela_var=-300.0*ba+elam
+    # ela_var=elam-ELAnoise #variable annual ELA
+    # b_var = (zb-ELAnoise)/slp
     #ela_var=elam*np.zeros(np.size(ELAnoise))
-    b_var=np.zeros([nyrs+1,len(x)])
-    for jj in range(len(ELAnoise)):
-        #b_var[jj,:]=(zb-ela_var[jj])/slp #b_var dimesions: rows=time (years), columns=specific mass balance (meters) for that time step
-        #b_var[10,0:100]=1.01*b_var[10,0:100]
-        b_var[jj,:]=b_mean
-    b_var[10,:]=(zb-elam+100)/slp    
+    b_var=np.zeros([int(nyrs+1),len(x)])
+    # rr=np.linspace(0,100,len(ELAnoise))
+    for jj in range(len(ela_var)):
+        b_var[jj,:]=(zb-ela_var[jj])/slp #b_var dimesions: rows=time (years), columns=specific mass balance (meters) for that time step
+    #     #b_var[10,0:100]=1.01*b_var[10,0:100]
+    #     b_var[jj,:]=b_mean
+    #     b_var[jj,:]=(zb-elam-rr[jj])/slp
+    
+    # b_var[10,:]=(zb-elam+200)/slp # + is ela lowering, - is ela higher
+    #b_var[10,:]=(zb-elam-100)/slp
+    #b_var[10,0:126]=b_var[10,0:126]*1.1    
     ########
     D={}     
     D = glacier(D,b_mean,delx,nxs,x,zb,bedprof,nyrs,spin=True) #run the model
@@ -399,7 +412,9 @@ if __name__ == "__main__":
     Hinit=Dspin['Hinit']
     binit=D['binit']
     Qpinit=D['Qpinit']
+    print "init length=", D['Linit']
     D = glacier(D,b_var,delx,nxs,x,zb,bedprof,nyrs,spin=False,Hinit=Hinit)
+    
     if 'H' in D:
         x=D['x'] #x nodes
         H=D['H'] #thickness at x at time t
@@ -414,16 +429,21 @@ if __name__ == "__main__":
         Qp=D['Qp'] #flux
         
     #fid=os.path.join(
-    Fwrite = False #true or false
+    Fwrite = True #true or false
     if Fwrite:
         filesaver(D,savedir)
     
-    profA=np.max(np.nonzero(zb[zb>2000])) #index of glacier where bed is 2000 m
-    profB=np.max(np.nonzero(zb[zb>2200])) 
-    profC=np.max(np.nonzero(zb[zb>2400]))
+    profA=np.max(np.nonzero(zb[zb>1550])) #index of glacier where bed is 2000 m
+    profB=np.max(np.nonzero(zb[zb>1750])) 
+    profC=np.max(np.nonzero(zb[zb>2000]))
+
+    D['profA']=profA
+    D['profB']=profB
+    D['profC']=profC
+    D['tt'] = tt
     
     ##### Plotting #####
-    plotting = True #true or false
+    plotting = False #true or false
     if plotting:
         ### tons of plots here, uncomment the ones you are interested in.
     
@@ -433,13 +453,13 @@ if __name__ == "__main__":
         plt.ion()
         plt.show()
         fig = plt.gcf()
-        fig.canvas.manager.window.raise_()
+        # fig.canvas.manager.window.raise_()
     
         for jj in range(len(t)):
             plt.clf()
             plt.plot(x,H[jj,:] + zb,'c')
             plt.plot(x,zb,'k')
-            plt.fill_between(x,zb,H[jj,:] + zb, color='c', alpha='0.5')
+            plt.fill_between(x,zb,H[jj,:] + zb)#, color='c', alpha='0.5')
             plt.grid(True)
             plt.title('Glacier Geometry')
             plt.draw()
@@ -485,27 +505,27 @@ if __name__ == "__main__":
     #    ######
     
     
-    #    ## Thickness Deviation #####     
-    #    plt.figure(4,figsize=(20,10))
-    #    plt.axis([0, 10000, -100, 100])
-    #    plt.ion()
-    #    plt.show()
-    #    fig = plt.gcf()
-    #    fig.canvas.manager.window.raise_()
-    #
-    #    for kk in range(len(t)):
-    #        tstr='time = %s years' % t[kk]
-    #        plt.clf()
-    #        plt.plot(x,(H[kk,:] - Hinit)/Hinit,'c')
-    #        plt.axis([0, 10000, -1, 1])
-    #        plt.plot(x,zb,'k')
-    #        plt.fill_between(x,zb,H[kk,:] + zb, color='c', alpha='0.5')
-    #        plt.grid(True)
-    #        plt.title('Deviation from Hinit')
-    #        plt.text(8000,20,tstr)
-    #        plt.draw()
-    #        plt.pause(0.7)        
-    #    ######
+        ## Thickness Deviation #####     
+        plt.figure(4,figsize=(20,10))
+        plt.axis([0, 10000, -100, 100])
+        plt.ion()
+        plt.show()
+        fig = plt.gcf()
+        # fig.canvas.manager.window.raise_()
+
+        for kk in range(len(t)):
+           tstr='time = %s years' % t[kk]
+           plt.clf()
+           plt.plot(x,(H[kk,:] - Hinit)/Hinit,'c')
+           plt.axis([0, 10000, -1, 1])
+           plt.plot(x,zb,'k')
+           plt.fill_between(x,zb,H[kk,:] + zb)#, color='c', alpha='0.5')
+           plt.grid(True)
+           plt.title('Deviation from Hinit')
+           plt.text(8000,20,tstr)
+           plt.draw()
+           plt.pause(0.7)        
+        ######
     
     #    ### specific mass balance through time  #####     
     #    plt.figure(5,figsize=(20,10))
@@ -554,44 +574,44 @@ if __name__ == "__main__":
             
         plt.show()
         fig = plt.gcf()
-        fig.canvas.manager.window.raise_()
+        # fig.canvas.manager.window.raise_()
         ######
     
-#        ## Thickness at profiles, length, and net b_dot through time
-#        plt.figure(7,figsize=(20,10))
-#    
-#
-#        plt.subplot(5,1,1)
-#        plt.title('Surface Elevation,Length,bnet')
-#        plt.plot(t,H[:,profC]+zb[profC])
-#        plt.grid(True)
-#    
-#        plt.subplot(5,1,2)
-#        plt.plot(t,H[:,profB]+zb[profB])
-#        plt.grid(True)
-#        
-#        plt.subplot(5,1,3)
-#        plt.plot(t,H[:,profA]+zb[profA])
-#        plt.grid(True)
-#
-#        plt.subplot(5,1,4)
-#        plt.plot(t,L)
-#        plt.grid(True)
-#    
-#        plt.subplot(5,1,5)
-#        plt.plot(t,Tyr-Tmean,'b')
-#        #plt.plot(t,Pyr-Pmean[profA],'g')
-#        plt.plot(t,Pyr-Pmean,'g')
-#        plt.grid(True)
-#        plt.subplot(5,1,5)
-#        plt.plot(t,bnet,'b')
-#        plt.grid(True)
-#        
-#
-#        plt.show()
-#        fig = plt.gcf()
-#        fig.canvas.manager.window.raise_()
-#        ######
+        ## Thickness at profiles, length, and net b_dot through time
+        plt.figure(7,figsize=(20,10))
+    
+
+        plt.subplot(5,1,1)
+        plt.title('Surface Elevation,Length,bnet')
+        plt.plot(t,H[:,profC]+zb[profC])
+        plt.grid(True)
+    
+        plt.subplot(5,1,2)
+        plt.plot(t,H[:,profB]+zb[profB])
+        plt.grid(True)
+        
+        plt.subplot(5,1,3)
+        plt.plot(t,H[:,profA]+zb[profA])
+        plt.grid(True)
+
+        plt.subplot(5,1,4)
+        plt.plot(t,L)
+        plt.grid(True)
+    
+        plt.subplot(5,1,5)
+        plt.plot(t,bnet,'b')
+        #plt.plot(t,Pyr-Pmean[profA],'g')
+        #plt.plot(t,Pyr-Pmean,'g')
+        plt.grid(True)
+        plt.subplot(5,1,5)
+        plt.plot(t,bnet,'b')
+        plt.grid(True)
+        
+
+        plt.show()
+        fig = plt.gcf()
+        # fig.canvas.manager.window.raise_()
+        ######
 
 #        #### Thickness deviation from initial at profiles, length, and net b_dot through time
 #        plt.figure(8,figsize=(20,10))
@@ -632,21 +652,32 @@ if __name__ == "__main__":
 
         plt.title('Flux')
         plt.plot(t,H[:,profC]+zb[profC])
-        plt.plot(x,Qp[11,:]-Qpinit,'k',label='11')
-        plt.plot(x,Qp[12,:]-Qpinit,'b',label='12')
-        plt.plot(x,Qp[13,:]-Qpinit,'r',label='13')
-        plt.plot(x,Qp[14,:]-Qpinit,'g',label='14')
-        plt.plot(x,Qp[15,:]-Qpinit,'m',label='15')
-        plt.plot(x,Qp[16,:]-Qpinit,'k--',label='16')
-        plt.plot(x,Qp[17,:]-Qpinit,'b--',label='17')
-        plt.plot(x,Qp[18,:]-Qpinit,'r--',label='18')
-        plt.plot(x,Qp[19,:]-Qpinit,'g--',label='19')
+        #plt.plot(x,Qp[11,:]-Qpinit,'k',label='11')
+        #plt.plot(x,Qp[12,:]-Qpinit,'b',label='12')
+        #plt.plot(x,Qp[13,:]-Qpinit,'r',label='13')
+        #plt.plot(x,Qp[14,:]-Qpinit,'g',label='14')
+        #plt.plot(x,Qp[15,:]-Qpinit,'m',label='15')
+        #plt.plot(x,Qp[16,:]-Qpinit,'k--',label='16')
+        #plt.plot(x,Qp[17,:]-Qpinit,'b--',label='17')
+        #plt.plot(x,Qp[18,:]-Qpinit,'r--',label='18')
+        #plt.plot(x,Qp[19,:]-Qpinit,'g--',label='19')
+        
+        plt.plot(x,Qp[11,:]-Qp[10,:],'k',label='11')
+        plt.plot(x,Qp[12,:]-Qp[11,:],'b',label='12')
+        plt.plot(x,Qp[13,:]-Qp[12,:],'r',label='13')
+        plt.plot(x,Qp[14,:]-Qp[13,:],'g',label='14')
+        plt.plot(x,Qp[15,:]-Qp[14,:],'m',label='15')
+        plt.plot(x,Qp[16,:]-Qp[15,:],'k--',label='16')
+        plt.plot(x,Qp[17,:]-Qp[16,:],'b--',label='17')
+        plt.plot(x,Qp[18,:]-Qp[17,:],'r--',label='18')
+        plt.plot(x,Qp[19,:]-Qp[18,:],'g--',label='19')        
+        
         plt.grid(True)
         plt.legend()
         #plt.savefig(savedir + '/flux_' + bedtype + '.eps', bbox_inches='tight')
         plt.show()
         fig = plt.gcf()
-        fig.canvas.manager.window.raise_()
+        # fig.canvas.manager.window.raise_()
         
 
     ######  end plots
@@ -657,7 +688,7 @@ if __name__ == "__main__":
     #plt.figure()
     #plt.plot(t,Pnorm,'b')
     #plt.plot(t,Tnorm,'g')
-   
+    np.save('gmodel.npy',D)
 
     elapsed=time.time()-tic
     elapsed_min=elapsed/60.

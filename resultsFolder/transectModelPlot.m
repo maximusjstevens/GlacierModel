@@ -98,6 +98,6 @@ axis([0,100,1570,1610])
 xlabel('Time (years)','fontsize',14)
 % ylabel('Glacier Surface Elevation (meters)','fontsize',14)
 
-print('profile_model.eps','-depsc','-r0')
+% print('profile_model.eps','-depsc','-r0')
 
 
